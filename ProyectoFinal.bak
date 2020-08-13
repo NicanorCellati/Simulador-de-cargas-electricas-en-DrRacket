@@ -1,0 +1,309 @@
+#lang racket
+;ProyectoParaFinalDeAsignaturaPLyF.rkt
+
+;invocar al modulo gui
+(require racket/gui)
+(require (lib "graphics.ss" "graphics"))(open-graphics)
+(require racket/string)
+(require racket/format)
+
+;Logo de Unnoba
+(define logo (open-pixmap "Simunnoba" 80 80))
+
+;Incluimos el logo en la ventana principal
+(((draw-pixmap-posn "Imagenes/LogoUnnoba.jpg") logo)(make-posn 0 0))
+
+;DEFINICION DE FUNCIONES A UTILIZAR PARA EL CALCULO DE LAS MAGNITUDES DE LAS FUERZAS ENTRE LAS CARGAS
+
+(define constanteDeCoulomb 9000000000) 
+
+(define (cuadrado a) (* a a))
+
+(define (raiz a) (sqrt a))
+
+(define (distanciaEntreCargas x2 y2 x1 y1)
+  (raiz (+ (cuadrado (- x2 x1))(cuadrado (- y2 y1)))))
+
+(define (valorDeCampoElectrico valorCargaFuente distanciaEntreCargas)
+  (/ (* constanteDeCoulomb (send slider1 get-value)) (distanciaEntreCargas (posn-x bola) (posn-y bola) 250 250)))
+
+(define (fuerzaElectricaQueSufreCargaDePrueba valorCargaFuente valorCargaPrueba distanciaEntreCargas)
+  (/ (* constanteDeCoulomb (send slider1 get-value) (send slider2 get-value))
+     (cuadrado (distanciaEntreCargas (distanciaEntreCargas (posn-x bola) (posn-y bola) 250 250)))))
+
+
+;VENTANA INICIAL
+(define ventanainicial
+  (new frame%
+       [label "Fisica II - UNNOBA"]
+       [width 100]
+       [height 100]))
+(send ventanainicial show #t)
+
+(new canvas%
+     [parent ventanainicial]
+     [horiz-margin 10]
+     [vert-margin 5]
+     [min-height 15]
+     [min-width 15]
+     [paint-callback
+      (lambda (canvas dc)
+        (send dc set-scale 3 3)
+        (send dc set-text-foreground "blue")
+        (send dc draw-text "SIMUNNOBA" 0 0))])
+
+(define panelvertical1 (new vertical-panel%
+                   [parent ventanainicial]
+                   [horiz-margin 50]
+                   [vert-margin 60]
+                   [border 3]))
+
+(define mensajeInicial
+  (new message% [parent panelvertical1]
+                [horiz-margin 50]
+                [vert-margin 10]
+                [min-height 5]
+                [min-width 6]
+                [label "Bienvenido al simulador donde podras visualizar la interaccion de cargas electricas y sus propiedades"]))
+
+
+;Esto podria ir en una ventana a parte, donde haya inforacio acerca del software, por el momento la dejo aca
+(define mensaje1a (new message%
+                    [label "De forma introductoria, vale aclarar, que la simulacion se llevara a cabo con dos cargas, una carga fuente y una carga de preba.. "]
+                    [parent panelvertical1]
+                    [horiz-margin 50]
+                    [vert-margin 15]
+                    [min-height 8]
+                    [min-width 8]
+                    [auto-resize #t]
+                    ))
+
+#|(define mensaje2a (new message%
+                    [label "Tiene sentido ademas decir, que la carga que tendra movilidad sera la de prueba, y los datos sobre las magnitudes de las fuerzas que obtendremos a medida que se mueva, seran los que sufre dicha carga, pese a la presencia de la carga fuente. "]
+                    [parent panelvertical1]
+                    [horiz-margin 60]
+                    [vert-margin 15]
+                    [min-height 8]
+                    [min-width 8]
+                    [auto-resize #t]
+                    ))|#
+
+(new button% [parent ventanainicial]
+             [label "Ingresar"]
+             [horiz-margin 50]
+             [vert-margin 25]
+             [min-height 40]
+             [min-width 60]
+             [callback (lambda (button event)
+                         (send mensajeInicial set-label "Entrando a Simunnoba...")
+                         (sleep 1)
+                         (send ventanainicial show #f)
+                         (send ventana2 show #t))])
+
+
+;VENTANA DE RESULTADOS DEL SIMULADOR
+(define ventana-de-resultados 
+  (new frame% [label "Configuracion del entorno"]
+              [width 150]
+              [height 150]
+              [enabled #t]))
+
+(define mensajeResultados1 (new message%
+                      [parent ventana-de-resultados]
+                      [label "Seleccionar la fuerza que desea conocer a la cual esta sometida la carga de prueba"]
+                      [auto-resize #t]
+                      ))
+
+;VENTANA 2
+(define ventana2 
+  (new frame% [label "Configuracion del entorno"]
+              [width 150]
+              [height 150]
+              [enabled #t])) 
+
+(define mensaje2 (new message%
+                    [ label "Aún no ha configurado el entorno, le recomiendo que seleccione la opcion configurar.. "]
+                    [ parent ventana2 ]
+                    [horiz-margin 90]
+                    [min-height 8]
+                    [min-width 8]
+                    [auto-resize #t]
+                    ))
+
+(define panelhorizontal2 (new horizontal-panel%
+                   [parent ventana2]
+                   [horiz-margin 250]
+                   [vert-margin 20]
+                   [border 3]))
+
+
+(define lanzar (new button%
+                    [parent panelhorizontal2]
+                    [label "Configuracion"]
+                    [min-height 5]
+                    [min-width 5]
+                    [callback
+                     (lambda (b c)
+                       (send ventana-de-configuracion show #t)
+                       (send mensaje2 set-label
+                             (string-append " Valor de la carga fuente : '"
+                                            (number->string (send slider1 get-value))
+                                            "', Valor de la carga de prueba : '"
+                                            (number->string (send slider2 get-value))
+                                            "'"
+                                            )
+                             )
+                       )]
+                    ))
+
+(new button% [parent panelhorizontal2]
+             [label "Comenzar"]
+             [min-height 5]
+             [min-width 5]
+             [callback (lambda (button event)
+                         (send ventana2 show #f)
+                         (send ventana-de-resultados show #t) ;esto anduvo?
+                         (open-viewport "ventana-de-simulacion" 800 600))])
+
+
+;VENTANA DE CONFIGURACION
+
+(define ventana-de-configuracion (new dialog% [label " Ventana de Configuracion "]))
+
+;Si en algun momento pienso ampliar la funcionalidad podria usar este text-field
+#|(define txt-cargas (new text-field%
+                            [label " Cantidad de cargas :"] ;
+                            [parent ventana-de-configuracion ]))|#
+
+(define textventc (new message% ;textventc: texto en ventana de configuracion
+                    [parent ventana-de-configuracion ]
+                    [label " Seleccione los valores que tendran asociados las cargas "]))
+
+
+(define slider1 (new slider%
+                     [label " Valor de la carga fuente :"]
+                     [parent ventana-de-configuracion]
+                     [min-value -50]
+                     [max-value 50]
+                     [init-value 0]))
+
+(define slider2 (new slider%
+                     [label " Valor de la carga de prueba :"]
+                     [parent ventana-de-configuracion]
+                     [min-value -50]
+                     [max-value 50]
+                     [init-value 0]))
+
+(new button%
+     [parent ventana-de-configuracion]
+     [label " Listo "]
+     [callback (lambda (b c) (send ventana-de-configuracion show #f))])
+
+(send ventana-de-configuracion show #f) ;Esta linea funciono?
+(send ventana2 show #t)
+
+
+;VENTANA DE SIMULACION
+
+(define ventana-de-simulacion (open-viewport "ventana-de-simulacion" 600 600))
+(define ventana-de-simulacion2 (open-pixmap "ventana-de-simulacion2" 600 600))
+
+((draw-rectangle ventana-de-simulacion) (make-posn 50 50) 500 500 "black")
+;((draw-rectangle ventana-de-simulacion) (make-posn 50 50) 175 175 "black") aca deberia hacer un cuadradito abajo/costado del de las cargas, que muestre las propiedades de ellas
+
+;dibujamos el ciruclo que se va a mover
+
+((draw-solid-ellipse ventana-de-simulacion2) (make-posn 250 250) 60 60 "green") 
+
+(define (bola posx posy lado)
+  (if (equal? lado 'arriba)
+      (begin
+        ((draw-rectangle ventana-de-simulacion2) (make-posn 50 50) 500 500 "black")
+        ((draw-solid-ellipse ventana-de-simulacion2) (make-posn posx posy) 50 50 "orange")
+        ((draw-solid-ellipse ventana-de-simulacion2) (make-posn 250 250) 60 60 "green"))
+
+      (if (equal? lado 'abajo)
+          (begin
+            ((draw-rectangle ventana-de-simulacion2) (make-posn 50 50) 500 500 "black")
+            ((draw-solid-ellipse ventana-de-simulacion2) (make-posn posx posy) 50 50 "orange")
+            ((draw-solid-ellipse ventana-de-simulacion2) (make-posn 250 250) 60 60 "green"))
+
+          (if (equal? lado 'izquierda)
+              (begin
+                ((draw-rectangle ventana-de-simulacion2) (make-posn 50 50) 500 500 "black")
+                ((draw-solid-ellipse ventana-de-simulacion2) (make-posn posx posy) 50 50 "orange")
+                ((draw-solid-ellipse ventana-de-simulacion2) (make-posn 250 250) 60 60 "green"))
+
+              (if (equal? lado 'derecha)
+                  (begin
+                    ((draw-rectangle ventana-de-simulacion2) (make-posn 50 50) 500 500 "black")
+                    ((draw-solid-ellipse ventana-de-simulacion2) (make-posn posx posy) 50 50 "orange")
+                    ((draw-solid-ellipse ventana-de-simulacion2) (make-posn 250 250) 60 60 "green"))
+
+                  (void)))))
+  
+  (copy-viewport ventana-de-simulacion2 ventana-de-simulacion)
+  ;((clear-viewport ventana-de-simulacion2))
+  ((close-viewport ventana-de-simulacion2)))
+
+;eventos en el teclado
+
+(define (teclado posx posy tecla)
+
+  (if (< posx 50)
+      (begin
+        (bola 50 posy 'izquierdo)
+        (teclado 50 posy (key-value(get-key-press ventana-de-simulacion))))
+
+      (if (> posx 500)
+          (begin
+            (bola 500 posy 'izquierdo)
+            (teclado 500 posy(key-value(get-key-press ventana-de-simulacion))))
+
+          (if (< posy 50)
+              (begin
+                (bola posx 50 'izquierdo)
+                (teclado posx 50 (key-value(get-key-press ventana-de-simulacion))))
+
+              (if (> posy 500)
+                  (begin
+                    (bola posx 500 'izquierdo)
+                    (teclado posx 500 (key-value(get-key-press ventana-de-simulacion))))
+      
+  (if (equal? tecla 'up)
+      (begin
+        (bola posx (- posy 10) 'arriba)
+        (teclado posx (- posy 10) (key-value (get-key-press ventana-de-simulacion))))
+
+      (if (equal? tecla 'down)
+          (begin
+            (bola posx (+ posy 10) 'abajo)
+            (teclado posx (+ posy 10) (key-value (get-key-press ventana-de-simulacion))))
+
+          (if (equal? tecla 'left)
+              (begin
+                (bola (- posx 10)posy 'izquierda)
+                (teclado (- posx 10)posy (key-value (get-key-press ventana-de-simulacion))))
+
+              (if (equal? tecla 'right)
+                  (begin
+                    (bola (+ posx 10)posy 'derecha)
+                    (teclado (+ posx 10)posy (key-value (get-key-press ventana-de-simulacion))))
+              
+                  (teclado posx posy (key-value (get-key-press ventana-de-simulacion)))
+              ))
+          )
+      )
+  )
+              )
+          )
+      )
+  )
+              
+(teclado 200 200 'up)
+;((close-viewport ventana-de-simulacion2))
+
+
+
+;informar un mensaje que la carga fuente sufrira una fuerza igual en magnitud a la carga de prueba pero en setido opuesto
+
